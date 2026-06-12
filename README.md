@@ -4,11 +4,11 @@ Fine-tune and evaluate [`ai4bharat/sarvam-1`](https://huggingface.co/ai4bharat/s
 
 Three-stage pipeline:
 
-| Stage | Notebook | Output model |
-|-------|----------|-------------|
-| Baseline eval | `notebooks/sarvam1_eval.ipynb` | — |
-| SFT (QLoRA) | `notebooks/sarvam1_sft.ipynb` | `{HF_USERNAME}/sarvam-1-odia-gsm8k-sft` |
-| GRPO (RL) | `notebooks/sarvam1_grpo.ipynb` | `{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo` |
+| Stage | Notebook (interactive) | Script (headless) | Output model |
+|-------|------------------------|-------------------|-------------|
+| Baseline eval | `notebooks/sarvam1_eval.ipynb` | — | — |
+| SFT (QLoRA) | `notebooks/sarvam1_sft.ipynb` | `scripts/sft_train.py` | `{HF_USERNAME}/sarvam-1-odia-gsm8k-sft` |
+| GRPO (RL) | `notebooks/sarvam1_grpo.ipynb` | `scripts/grpo_train.py` | `{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo` |
 
 Each eval run is logged to Comet ML for side-by-side comparison across all three models.
 
@@ -37,8 +37,9 @@ Each eval run is logged to Comet ML for side-by-side comparison across all three
 ```bash
 git clone https://github.com/pareshppp/odia-finetuning-inference.git
 cd odia-finetuning-inference
-pip install transformers datasets accelerate peft bitsandbytes trl \
-            torch python-dotenv pandas matplotlib seaborn tqdm comet_ml opik
+pip install -e .
+# Optional: vLLM for faster GRPO rollouts (requires USE_QLORA=false)
+# pip install -e ".[vllm]"
 ```
 
 ### 2. Configure environment
@@ -77,7 +78,10 @@ jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb
 
 ```bash
 # Trains QLoRA, merges adapter, pushes to HF Hub
-jupyter nbconvert --to notebook --execute notebooks/sarvam1_sft.ipynb
+# Run inside screen/tmux to survive session disconnects
+screen -S sft
+python scripts/sft_train.py
+# Ctrl-A D to detach; screen -r sft to reattach
 ```
 
 ### Step 3 — Eval SFT model
@@ -91,7 +95,9 @@ jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb
 
 ```bash
 # Starts from the SFT model, trains with verifiable rewards
-jupyter nbconvert --to notebook --execute notebooks/sarvam1_grpo.ipynb
+screen -S grpo
+python scripts/grpo_train.py
+# Ctrl-A D to detach; screen -r grpo to reattach
 ```
 
 ### Step 5 — Eval GRPO model
