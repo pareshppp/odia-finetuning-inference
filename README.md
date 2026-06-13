@@ -71,40 +71,54 @@ Key variables (see `.env.example` for full list):
 
 ```bash
 # In .env: MODEL_ID=ai4bharat/sarvam-1, NUM_FEW_SHOT=3
-jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb
+jupyter lab notebooks/sarvam1_eval.ipynb
+# (or for headless execution: jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb)
 ```
 
 ### Step 2 — SFT fine-tuning
 
+Trains QLoRA, merges adapter, pushes to HF Hub. Pick one of:
+
+**Script (recommended for RunPod — survives session disconnects):**
 ```bash
-# Trains QLoRA, merges adapter, pushes to HF Hub
-# Run inside screen/tmux to survive session disconnects
 screen -S sft
 python scripts/sft_train.py
 # Ctrl-A D to detach; screen -r sft to reattach
+```
+
+**Notebook (interactive):**
+```bash
+jupyter lab notebooks/sarvam1_sft.ipynb
 ```
 
 ### Step 3 — Eval SFT model
 
 ```bash
 # In .env: MODEL_ID={HF_USERNAME}/sarvam-1-odia-gsm8k-sft, NUM_FEW_SHOT=0
-jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb
+jupyter lab notebooks/sarvam1_eval.ipynb
 ```
 
 ### Step 4 — GRPO fine-tuning
 
+Starts from the SFT model, trains with verifiable rewards. Pick one of:
+
+**Script (recommended for RunPod):**
 ```bash
-# Starts from the SFT model, trains with verifiable rewards
 screen -S grpo
 python scripts/grpo_train.py
 # Ctrl-A D to detach; screen -r grpo to reattach
+```
+
+**Notebook (interactive):**
+```bash
+jupyter lab notebooks/sarvam1_grpo.ipynb
 ```
 
 ### Step 5 — Eval GRPO model
 
 ```bash
 # In .env: MODEL_ID={HF_USERNAME}/sarvam-1-odia-gsm8k-grpo, NUM_FEW_SHOT=0
-jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb
+jupyter lab notebooks/sarvam1_eval.ipynb
 ```
 
 After all three eval runs, open the `sarvam1-odia-gsm8k-eval` project in Comet ML and use **Compare** to view base / SFT / GRPO side-by-side.
