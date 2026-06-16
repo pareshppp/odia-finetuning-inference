@@ -63,7 +63,7 @@ LORA_ALPHA       = int(os.getenv("LORA_ALPHA",      "32"))
 
 COMET_API_KEY    = os.getenv("COMET_API_KEY")
 COMET_WORKSPACE  = os.getenv("COMET_WORKSPACE")
-COMET_PROJECT    = os.getenv("COMET_PROJECT_NAME", "sarvam1-odia-gsm8k")
+COMET_PROJECT    = os.getenv("COMET_PROJECT_NAME", "odia-finetuning-inference")
 
 # Fail fast on missing push target — don't waste hours of training
 if PUSH_TO_HUB:
@@ -93,22 +93,24 @@ else:
 
 if COMET_API_KEY:
     import comet_ml
-    comet_ml.login(api_key=COMET_API_KEY, workspace=COMET_WORKSPACE, project_name=COMET_PROJECT)
-    os.environ["COMET_MODE"] = "ONLINE"
+    os.environ["COMET_MODE"]         = "ONLINE"
     os.environ["COMET_PROJECT_NAME"] = COMET_PROJECT
     if COMET_WORKSPACE:
         os.environ["COMET_WORKSPACE"] = COMET_WORKSPACE
+    comet_ml.login(api_key=COMET_API_KEY)   # auth only — project/workspace set via env vars above
     REPORT_TO = "comet_ml"
-    print("Comet  : configured")
+    print(f"Comet  : configured  project={COMET_PROJECT}")
 else:
     REPORT_TO = "none"
     print("Comet  : not configured (set COMET_API_KEY to enable)")
 
-OPIK_ENABLED = bool(os.getenv("OPIK_API_KEY"))
+OPIK_ENABLED      = bool(os.getenv("OPIK_API_KEY"))
+OPIK_PROJECT_NAME = os.getenv("OPIK_PROJECT_NAME", "odia-finetuning-inference")
 if OPIK_ENABLED:
     import opik
+    os.environ["OPIK_PROJECT_NAME"] = OPIK_PROJECT_NAME   # Opik reads this automatically
     opik.configure(api_key=os.getenv("OPIK_API_KEY"), workspace=os.getenv("OPIK_WORKSPACE"))
-    print("Opik   : configured")
+    print(f"Opik   : configured  project={OPIK_PROJECT_NAME}")
 else:
     print("Opik   : not configured (optional)")
 
@@ -272,7 +274,7 @@ test_ds = load_dataset(DATASET_ID, split="test", token=HF_TOKEN).select(range(3)
 eval_model = merged_model if merged_model is not None else trainer.model
 eval_model.eval()
 
-_track = opik.track if OPIK_ENABLED else (lambda f: f)
+_track = opik.track(name="sft_sanity_check") if OPIK_ENABLED else (lambda f: f)
 
 @_track
 def run_sample(question: str) -> str:
