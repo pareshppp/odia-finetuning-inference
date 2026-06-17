@@ -64,6 +64,8 @@ LORA_ALPHA       = int(os.getenv("LORA_ALPHA",      "32"))
 COMET_API_KEY    = os.getenv("COMET_API_KEY")
 COMET_WORKSPACE  = os.getenv("COMET_WORKSPACE")
 COMET_PROJECT    = os.getenv("COMET_PROJECT_NAME", "odia-finetuning-inference")
+GPU_TYPE         = os.getenv("GPU_TYPE", "").strip().lower()      # e.g. h100, l40, a100
+COMET_TAGS_EXTRA = os.getenv("COMET_TAGS", "").strip()           # optional extra tags
 
 # Fail fast on missing push target — don't waste hours of training
 if PUSH_TO_HUB:
@@ -93,13 +95,19 @@ else:
 
 if COMET_API_KEY:
     import comet_ml
+    tags = ["sft", "qlora" if USE_QLORA else "bf16"]
+    if GPU_TYPE:
+        tags.append(GPU_TYPE)
+    if COMET_TAGS_EXTRA:
+        tags.extend(t.strip() for t in COMET_TAGS_EXTRA.split(",") if t.strip())
     os.environ["COMET_MODE"]         = "ONLINE"
     os.environ["COMET_PROJECT_NAME"] = COMET_PROJECT
+    os.environ["COMET_TAGS"]         = ",".join(tags)
     if COMET_WORKSPACE:
         os.environ["COMET_WORKSPACE"] = COMET_WORKSPACE
-    comet_ml.login(api_key=COMET_API_KEY)   # auth only — project/workspace set via env vars above
+    comet_ml.login(api_key=COMET_API_KEY)   # auth only — project/workspace/tags set via env vars above
     REPORT_TO = "comet_ml"
-    print(f"Comet  : configured  project={COMET_PROJECT}")
+    print(f"Comet  : configured  project={COMET_PROJECT}  tags={tags}")
 else:
     REPORT_TO = "none"
     print("Comet  : not configured (set COMET_API_KEY to enable)")
@@ -185,7 +193,7 @@ print(f"Formatted {len(train_ds)} examples")
 # ---------------------------------------------------------------------------
 # Trainer
 # ---------------------------------------------------------------------------
-run_name = f"sarvam1-sft-{int(time.time())}"
+run_name = "-".join(filter(None, ["sarvam1-sft", GPU_TYPE, str(int(time.time()))]))
 
 sft_config = SFTConfig(
     output_dir=str(SFT_OUTPUT_DIR),
