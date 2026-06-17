@@ -7,28 +7,26 @@ requires-python = ">=3.11"
 
 dependencies = [
     # Core training / inference
-    "torch>=2.4,<2.7",
-    "transformers>=4.46,<4.50",
-    "trl>=0.16,<0.18",          # SFTTrainer uses processing_class= (≥0.16) and GRPOTrainer API stabilized here
-    "peft>=0.13,<0.16",
-    "bitsandbytes>=0.44,<0.46",
-    "accelerate>=1.0,<1.5",
-    "datasets>=3.0,<4.0",
-    "huggingface_hub>=0.26,<1.0",
-
+    "torch>=2.4",
+    "transformers>=4.46",
+    "trl>=0.16",
+    "peft>=0.13",
+    "bitsandbytes>=0.44",
+    "accelerate>=1.0",
+    "datasets>=3.0",
+    "huggingface_hub>=0.26",
     # Config + utils
     "python-dotenv>=1.0",
     "tqdm>=4.66",
-
     # Eval notebook
     "pandas>=2.2",
-    "numpy>=1.26,<2.3",
+    "numpy>=2.0",
     "matplotlib>=3.8",
     "seaborn>=0.13",
-
     # Experiment tracking
     "comet_ml>=3.47",
     "opik>=1.0",
+    "ipykernel>=7.3.0",
 ]
 
 [project.optional-dependencies]
