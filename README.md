@@ -37,10 +37,12 @@ Each eval run is logged to Comet ML for side-by-side comparison across all three
 ```bash
 git clone https://github.com/pareshppp/odia-finetuning-inference.git
 cd odia-finetuning-inference
-pip install -e .
+pip install -r requirements.txt
 # Optional: vLLM for faster GRPO rollouts (requires USE_QLORA=false)
-# pip install -e ".[vllm]"
+# pip install vllm>=0.6
 ```
+
+> **RunPod note:** RunPod containers ship with a CUDA-matched PyTorch. If `torch` is already installed, pip will upgrade/replace it from `requirements.txt`. To keep the pre-installed torch, run `pip install -r requirements.txt --no-deps` then `pip install <missing packages>` individually, or simply let pip resolve it.
 
 ### 2. Configure environment
 
@@ -66,6 +68,25 @@ Key variables (see `.env.example` for full list):
 ---
 
 ## Run order (on RunPod A100 / H100)
+
+### Step 0 — Connect Claude Code to RunPod
+
+SSH into your RunPod instance and install Claude Code:
+
+```bash
+ssh user@your-runpod-ip
+
+# Install Node.js (if not present)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install Claude Code
+npm install -g @anthropic-ai/claude-code
+
+# Authenticate (requires ANTHROPIC_API_KEY)
+export ANTHROPIC_API_KEY=your_key_here
+claude
+```
 
 ### Step 1 — Base model baseline
 
