@@ -57,8 +57,9 @@ COMET_EVAL_PROJECT = "sarvam1-odia-gsm8k-eval"  # separate project → compare b
 # ---------------------------------------------------------------------------
 # SFT (sarvam1_sft.ipynb)
 # ---------------------------------------------------------------------------
-SFT_OUTPUT_DIR   = Path("/workspace/sarvam1-odia-gsm8k-sft")
-SFT_HUB_MODEL_ID = ""              # blank → {HF_USERNAME}/sarvam-1-odia-gsm8k-sft
+SFT_OUTPUT_DIR        = Path("/workspace/sarvam1-odia-gsm8k-sft")
+SFT_HUB_MODEL_ID      = ""         # blank → {HF_USERNAME}/sarvam-1-odia-gsm8k-sft
+SFT_ADAPTER_HUB_MODEL_ID = ""      # blank → {HF_USERNAME}/sarvam-1-odia-gsm8k-sft-adapter
 PUSH_TO_HUB      = True
 PRIVATE_REPO     = False
 USE_QLORA        = True            # 4-bit base + LoRA; set False for full bf16 FT
@@ -80,6 +81,7 @@ LORA_ALPHA    = 32
 SFT_MODEL_ID      = ""             # blank → SFT_HUB_MODEL_ID
 GRPO_OUTPUT_DIR   = Path("/workspace/sarvam1-odia-gsm8k-grpo")
 GRPO_HUB_MODEL_ID = ""             # blank → {HF_USERNAME}/sarvam-1-odia-gsm8k-grpo
+GRPO_ADAPTER_HUB_MODEL_ID = ""     # blank → {HF_USERNAME}/sarvam-1-odia-gsm8k-grpo-adapter
 
 USE_VLLM              = False      # True = much faster rollouts (requires vllm install, USE_QLORA=False)
 GRPO_NUM_EPOCHS       = 1.0
@@ -98,7 +100,7 @@ GRPO_SAVE_STEPS       = 100
 # ---------------------------------------------------------------------------
 COMET_WORKSPACE    = "paresh-pradhan"
 COMET_PROJECT_NAME = "odia-finetuning-inference"
-GPU_TYPE           = "rtx4000ada"  # e.g. h100, l40, a100 — appended to run name and Comet tags
+GPU_TYPE           = "l40s"  # e.g. h100, l40, a100 — appended to run name and Comet tags
 COMET_TAGS         = ""            # optional extra comma-separated tags (e.g. "experiment,v2")
 
 OPIK_WORKSPACE     = COMET_WORKSPACE
@@ -111,8 +113,14 @@ OPIK_PROJECT_NAME  = COMET_PROJECT_NAME
 if not SFT_HUB_MODEL_ID:
     SFT_HUB_MODEL_ID = f"{HF_USERNAME}/sarvam-1-odia-gsm8k-sft" if HF_USERNAME else ""
 
+if not SFT_ADAPTER_HUB_MODEL_ID:
+    SFT_ADAPTER_HUB_MODEL_ID = f"{HF_USERNAME}/sarvam-1-odia-gsm8k-sft-adapter" if HF_USERNAME else ""
+
 if not GRPO_HUB_MODEL_ID:
     GRPO_HUB_MODEL_ID = f"{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo" if HF_USERNAME else ""
+
+if not GRPO_ADAPTER_HUB_MODEL_ID:
+    GRPO_ADAPTER_HUB_MODEL_ID = f"{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo-adapter" if HF_USERNAME else ""
 
 # GRPO starts from the SFT model — fall back to the SFT push target
 if not SFT_MODEL_ID:
@@ -138,11 +146,11 @@ __all__ = [
     "NUM_FEW_SHOT", "MAX_NEW_TOKENS", "NUM_EVAL_SAMPLES", "DEVICE", "RESULTS_DIR",
     "EVAL_RUN_TAG", "COMET_EVAL_PROJECT",
     # sft
-    "SFT_OUTPUT_DIR", "SFT_HUB_MODEL_ID", "PUSH_TO_HUB", "PRIVATE_REPO", "USE_QLORA",
+    "SFT_OUTPUT_DIR", "SFT_HUB_MODEL_ID", "SFT_ADAPTER_HUB_MODEL_ID", "PUSH_TO_HUB", "PRIVATE_REPO", "USE_QLORA",
     "NUM_EPOCHS", "LEARNING_RATE", "BATCH_SIZE", "GRAD_ACCUM", "MAX_SEQ_LEN",
     "WARMUP_RATIO", "LOGGING_STEPS", "SAVE_STEPS", "LORA_R", "LORA_ALPHA",
     # grpo
-    "SFT_MODEL_ID", "GRPO_OUTPUT_DIR", "GRPO_HUB_MODEL_ID", "USE_VLLM",
+    "SFT_MODEL_ID", "GRPO_OUTPUT_DIR", "GRPO_HUB_MODEL_ID", "GRPO_ADAPTER_HUB_MODEL_ID", "USE_VLLM",
     "GRPO_NUM_EPOCHS", "GRPO_LEARNING_RATE", "GRPO_BATCH_SIZE", "GRPO_GRAD_ACCUM",
     "MAX_PROMPT_LEN", "MAX_COMPLETION_LENGTH", "NUM_GENERATIONS", "GRPO_BETA",
     "GRPO_LOGGING_STEPS", "GRPO_SAVE_STEPS",

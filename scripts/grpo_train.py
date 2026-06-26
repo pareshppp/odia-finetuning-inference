@@ -67,6 +67,10 @@ if PUSH_TO_HUB:
         "PUSH_TO_HUB=true but neither GRPO_HUB_MODEL_ID nor HF_USERNAME is set. "
         "Set one before training, or set PUSH_TO_HUB=false."
     )
+    assert GRPO_ADAPTER_HUB_MODEL_ID, (
+        "PUSH_TO_HUB=true but GRPO_ADAPTER_HUB_MODEL_ID could not be resolved. "
+        "Set HF_USERNAME or GRPO_ADAPTER_HUB_MODEL_ID in config.py."
+    )
 
 # vLLM + QLoRA is unstable in current TRL — vLLM materializes its own model copy
 # that conflicts with quantized weights and adapter merge during rollouts
@@ -100,7 +104,6 @@ if COMET_API_KEY:
         tags.append(GPU_TYPE)
     if COMET_TAGS_EXTRA:
         tags.extend(t.strip() for t in COMET_TAGS_EXTRA.split(",") if t.strip())
-    os.environ["COMET_MODE"]         = "ONLINE"
     os.environ["COMET_PROJECT_NAME"] = COMET_PROJECT
     os.environ["COMET_TAGS"]         = ",".join(tags)
     if COMET_WORKSPACE:
@@ -249,11 +252,10 @@ grpo_config = GRPOConfig(
     gradient_checkpointing_kwargs={"use_reentrant": False},
     learning_rate=LEARNING_RATE,
     lr_scheduler_type="cosine",
-    warmup_ratio=WARMUP_RATIO,
+    warmup_steps=WARMUP_RATIO,   # float in (0,1) is interpreted as a ratio of total steps
     optim="paged_adamw_8bit" if USE_QLORA else "adamw_torch",
     bf16=True,
     num_generations=NUM_GENERATIONS,
-    max_prompt_length=MAX_PROMPT_LEN,
     max_completion_length=MAX_COMPLETION,
     beta=BETA,
     use_vllm=USE_VLLM,
@@ -293,6 +295,17 @@ trainer.save_model(str(adapter_dir))
 tokenizer.save_pretrained(str(adapter_dir))
 print(f"Adapter saved to {adapter_dir}")
 
+if PUSH_TO_HUB:
+    # Reset to right-padding before pushing — left-padding was needed for rollouts
+    # but downstream users expect right-padded tokenizers.
+    tokenizer.padding_side = "right"
+
+    print(f"Pushing adapter → {GRPO_ADAPTER_HUB_MODEL_ID}")
+    create_repo(GRPO_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO, exist_ok=True)
+    trainer.model.push_to_hub(GRPO_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO)
+    tokenizer.push_to_hub(GRPO_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO)
+    print(f"Pushed adapter: https://huggingface.co/{GRPO_ADAPTER_HUB_MODEL_ID}")
+
 
 # ---------------------------------------------------------------------------
 # Merge LoRA → push to Hub
@@ -313,10 +326,6 @@ if PUSH_TO_HUB:
         trust_remote_code=True,
     )
     merged_model = PeftModel.from_pretrained(base, str(adapter_dir)).merge_and_unload()
-
-    # Reset to right-padding before pushing — left-padding was needed for rollouts
-    # but downstream users expect right-padded tokenizers for training.
-    tokenizer.padding_side = "right"
 
     print(f"Pushing merged model → {GRPO_HUB_MODEL_ID}")
     create_repo(GRPO_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO, exist_ok=True)

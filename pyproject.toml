@@ -9,7 +9,7 @@ dependencies = [
     # Core training / inference
     "torch>=2.4",
     "transformers>=4.46",
-    "trl>=0.16",
+    "trl>=1.7",
     "peft>=0.13",
     "bitsandbytes>=0.44",
     "accelerate>=1.0",

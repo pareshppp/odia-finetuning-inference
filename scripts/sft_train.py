@@ -49,11 +49,15 @@ BASE_MODEL_ID    = MODEL_ID
 COMET_PROJECT    = COMET_PROJECT_NAME
 COMET_TAGS_EXTRA = COMET_TAGS
 
-# Fail fast on missing push target — don't waste hours of training
+# Fail fast on missing push targets — don't waste hours of training
 if PUSH_TO_HUB:
     assert SFT_HUB_MODEL_ID, (
         "PUSH_TO_HUB=true but neither SFT_HUB_MODEL_ID nor HF_USERNAME is set. "
         "Set one in config.py before training, or set PUSH_TO_HUB=False."
+    )
+    assert SFT_ADAPTER_HUB_MODEL_ID, (
+        "PUSH_TO_HUB=true but SFT_ADAPTER_HUB_MODEL_ID could not be resolved. "
+        "Set HF_USERNAME or SFT_ADAPTER_HUB_MODEL_ID in config.py."
     )
 
 SFT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,7 +85,6 @@ if COMET_API_KEY:
         tags.append(GPU_TYPE)
     if COMET_TAGS_EXTRA:
         tags.extend(t.strip() for t in COMET_TAGS_EXTRA.split(",") if t.strip())
-    os.environ["COMET_MODE"]         = "ONLINE"
     os.environ["COMET_PROJECT_NAME"] = COMET_PROJECT
     os.environ["COMET_TAGS"]         = ",".join(tags)
     if COMET_WORKSPACE:
@@ -184,13 +187,13 @@ sft_config = SFTConfig(
     gradient_checkpointing_kwargs={"use_reentrant": False},
     learning_rate=LEARNING_RATE,
     lr_scheduler_type="cosine",
-    warmup_ratio=WARMUP_RATIO,
+    warmup_steps=WARMUP_RATIO,   # float in (0,1) is interpreted as a ratio of total steps
     optim="paged_adamw_8bit" if USE_QLORA else "adamw_torch",
     bf16=True,
     logging_steps=LOGGING_STEPS,
     save_steps=SAVE_STEPS,
     save_total_limit=2,
-    max_seq_length=MAX_SEQ_LEN,
+    max_length=MAX_SEQ_LEN,
     packing=False,
     dataset_text_field="text",
     report_to=REPORT_TO,
@@ -223,6 +226,13 @@ adapter_dir = SFT_OUTPUT_DIR / "final-adapter"
 trainer.save_model(str(adapter_dir))
 tokenizer.save_pretrained(str(adapter_dir))
 print(f"Adapter saved to {adapter_dir}")
+
+if PUSH_TO_HUB:
+    print(f"Pushing adapter → {SFT_ADAPTER_HUB_MODEL_ID}")
+    create_repo(SFT_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO, exist_ok=True)
+    trainer.model.push_to_hub(SFT_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO)
+    tokenizer.push_to_hub(SFT_ADAPTER_HUB_MODEL_ID, token=HF_TOKEN, private=PRIVATE_REPO)
+    print(f"Pushed adapter: https://huggingface.co/{SFT_ADAPTER_HUB_MODEL_ID}")
 
 
 # ---------------------------------------------------------------------------
