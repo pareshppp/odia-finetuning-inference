@@ -64,12 +64,13 @@ PUSH_TO_HUB      = True
 PRIVATE_REPO     = False
 USE_QLORA        = True            # 4-bit base + LoRA; set False for full bf16 FT
 
-NUM_EPOCHS    = 3.0
-LEARNING_RATE = 2e-4
-BATCH_SIZE    = 8                  # tuned for A100 40GB / H100 80GB with QLoRA @ seq_len 2048
-GRAD_ACCUM    = 2                  # effective batch = BATCH_SIZE * GRAD_ACCUM = 16
-MAX_SEQ_LEN   = 2048              # GSM8K solutions can exceed 1024 in Odia; truncating '#### N' kills SFT signal
-WARMUP_RATIO  = 0.03
+NUM_EPOCHS    = 2
+LEARNING_RATE = 3e-4              # bumped from 2e-4: packing puts ~5x more real tokens/step, so gradients are less noisy
+BATCH_SIZE    = 16                # packing fills every seq to MAX_SEQ_LEN, so memory/seq is higher than unpacked — keep batch modest
+GRAD_ACCUM    = 1                 # effective batch = BATCH_SIZE * GRAD_ACCUM = 16 packed sequences
+MAX_SEQ_LEN   = 2048             # GSM8K solutions can exceed 1024 in Odia; truncating '#### N' kills SFT signal
+USE_PACKING   = True             # pack multiple examples per seq (needs FlashAttention-2 for correct doc isolation)
+WARMUP_RATIO  = 0.05             # packing cuts total steps sharply, so give warmup a slightly larger share
 LOGGING_STEPS = 10
 SAVE_STEPS    = 200
 LORA_R        = 16
@@ -148,7 +149,7 @@ __all__ = [
     # sft
     "SFT_OUTPUT_DIR", "SFT_HUB_MODEL_ID", "SFT_ADAPTER_HUB_MODEL_ID", "PUSH_TO_HUB", "PRIVATE_REPO", "USE_QLORA",
     "NUM_EPOCHS", "LEARNING_RATE", "BATCH_SIZE", "GRAD_ACCUM", "MAX_SEQ_LEN",
-    "WARMUP_RATIO", "LOGGING_STEPS", "SAVE_STEPS", "LORA_R", "LORA_ALPHA",
+    "USE_PACKING", "WARMUP_RATIO", "LOGGING_STEPS", "SAVE_STEPS", "LORA_R", "LORA_ALPHA",
     # grpo
     "SFT_MODEL_ID", "GRPO_OUTPUT_DIR", "GRPO_HUB_MODEL_ID", "GRPO_ADAPTER_HUB_MODEL_ID", "USE_VLLM",
     "GRPO_NUM_EPOCHS", "GRPO_LEARNING_RATE", "GRPO_BATCH_SIZE", "GRPO_GRAD_ACCUM",

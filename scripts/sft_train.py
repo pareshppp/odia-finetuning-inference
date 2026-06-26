@@ -129,7 +129,12 @@ if tokenizer.pad_token is None:
 tokenizer.padding_side = "right"
 
 print("Loading model...")
-model_kwargs = dict(token=HF_TOKEN, trust_remote_code=True, device_map="auto")
+model_kwargs = dict(
+    token=HF_TOKEN,
+    trust_remote_code=True,
+    device_map="auto",
+    attn_implementation="flash_attention_2",  # required for correct doc isolation when packing
+)
 
 if USE_QLORA:
     model_kwargs["quantization_config"] = BitsAndBytesConfig(
@@ -194,7 +199,7 @@ sft_config = SFTConfig(
     save_steps=SAVE_STEPS,
     save_total_limit=2,
     max_length=MAX_SEQ_LEN,
-    packing=False,
+    packing=USE_PACKING,
     dataset_text_field="text",
     report_to=REPORT_TO,
     run_name=run_name,
