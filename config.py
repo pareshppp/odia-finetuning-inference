@@ -35,19 +35,19 @@ HF_USERNAME = "pareshppp"          # used to construct default push targets
 # ---------------------------------------------------------------------------
 # Model + dataset (shared by eval / SFT / GRPO)
 # ---------------------------------------------------------------------------
-MODEL_ID       = "ai4bharat/sarvam-1"
+MODEL_ID       = "sarvamai/sarvam-1"
 DATASET_ID     = "tripathysagar/odia-gsm8k"
 DATASET_SPLIT  = "test"            # used by eval notebook
 TRAIN_SPLIT    = "train"           # used by SFT + GRPO
 FEW_SHOT_SPLIT = "train"
-QUESTION_COL   = "question"
-ANSWER_COL     = "answer"
+QUESTION_COL   = "odia_question"
+ANSWER_COL     = "odia_answer"
 
 # ---------------------------------------------------------------------------
 # Evaluation (sarvam1_eval.ipynb)
 # ---------------------------------------------------------------------------
 NUM_FEW_SHOT       = 3             # Sarvam-1 is base; few-shot strongly recommended
-MAX_NEW_TOKENS     = 512
+MAX_NEW_TOKENS     = 1024          # Odia GSM8K solutions can run long; 512 truncated the '#### N' line on ~5%+ of samples
 NUM_EVAL_SAMPLES   = 100           # -1 → evaluate all samples
 DEVICE             = "cuda"        # cuda | cpu | mps
 RESULTS_DIR        = Path("results")
@@ -101,8 +101,8 @@ COMET_PROJECT_NAME = "odia-finetuning-inference"
 GPU_TYPE           = "rtx4000ada"  # e.g. h100, l40, a100 — appended to run name and Comet tags
 COMET_TAGS         = ""            # optional extra comma-separated tags (e.g. "experiment,v2")
 
-OPIK_WORKSPACE     = None
-OPIK_PROJECT_NAME  = "odia-finetuning-inference"
+OPIK_WORKSPACE     = COMET_WORKSPACE
+OPIK_PROJECT_NAME  = COMET_PROJECT_NAME
 
 
 # ---------------------------------------------------------------------------

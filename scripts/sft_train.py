@@ -1,7 +1,7 @@
 """
 Sarvam-1 SFT on Odia GSM8K
 ----------------------------
-Supervised fine-tuning of ai4bharat/sarvam-1 on the train split of
+Supervised fine-tuning of sarvamai/sarvam-1 on the train split of
 tripathysagar/odia-gsm8k using TRL SFTTrainer + QLoRA.
 
 Usage (RunPod):

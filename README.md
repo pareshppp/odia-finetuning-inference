@@ -1,6 +1,6 @@
 # Odia GSM8K — Sarvam-1 Fine-tuning & Evaluation
 
-Fine-tune and evaluate [`ai4bharat/sarvam-1`](https://huggingface.co/ai4bharat/sarvam-1) (2B Indic-language base model) on the [`tripathysagar/odia-gsm8k`](https://huggingface.co/datasets/tripathysagar/odia-gsm8k) math reasoning dataset.
+Fine-tune and evaluate [`sarvamai/sarvam-1`](https://huggingface.co/sarvamai/sarvam-1) (2B Indic-language base model) on the [`tripathysagar/odia-gsm8k`](https://huggingface.co/datasets/tripathysagar/odia-gsm8k) math reasoning dataset.
 
 Three-stage pipeline:
 
@@ -64,7 +64,7 @@ everywhere. Key knobs:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HF_USERNAME` | `pareshppp` | Used to construct default Hub push targets |
-| `MODEL_ID` | `ai4bharat/sarvam-1` | Model to evaluate or start training from |
+| `MODEL_ID` | `sarvamai/sarvam-1` | Model to evaluate or start training from |
 | `DATASET_ID` | `tripathysagar/odia-gsm8k` | HuggingFace dataset |
 | `NUM_FEW_SHOT` | `3` | Few-shot examples for base model eval (set `0` for SFT/GRPO) |
 | `NUM_EVAL_SAMPLES` | `100` | Samples to evaluate (`-1` = all) |
@@ -98,7 +98,7 @@ claude
 ### Step 1 — Base model baseline
 
 ```bash
-# In config.py: MODEL_ID = "ai4bharat/sarvam-1", NUM_FEW_SHOT = 3
+# In config.py: MODEL_ID = "sarvamai/sarvam-1", NUM_FEW_SHOT = 3
 jupyter lab notebooks/sarvam1_eval.ipynb
 # (or for headless execution: jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb)
 ```
