@@ -44,24 +44,31 @@ pip install -r requirements.txt
 
 > **RunPod note:** RunPod containers ship with a CUDA-matched PyTorch. If `torch` is already installed, pip will upgrade/replace it from `requirements.txt`. To keep the pre-installed torch, run `pip install -r requirements.txt --no-deps` then `pip install <missing packages>` individually, or simply let pip resolve it.
 
-### 2. Configure environment
+### 2. Configure secrets + parameters
+
+Secrets go in `.env` (gitignored); everything else lives in `config.py`.
 
 ```bash
 cp .env.example .env
-# Edit .env and fill in at minimum:
-#   HF_TOKEN, HF_USERNAME
-#   COMET_API_KEY, COMET_WORKSPACE   (optional but recommended)
+# Edit .env and fill in your secrets:
+#   HF_TOKEN       (required for gated models / Hub push)
+#   COMET_API_KEY  (optional but recommended — enables metrics logging)
+#   OPIK_API_KEY   (optional — LLM-trace decoration on sanity rollouts)
 ```
 
-Key variables (see `.env.example` for full list):
+All non-secret parameters (model id, dataset, hyperparameters, paths, workspace
+names, …) are plain Python values in **`config.py`** — edit them there. The
+notebooks and scripts both `from config import *`, so a single change applies
+everywhere. Key knobs:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `HF_USERNAME` | `pareshppp` | Used to construct default Hub push targets |
 | `MODEL_ID` | `ai4bharat/sarvam-1` | Model to evaluate or start training from |
 | `DATASET_ID` | `tripathysagar/odia-gsm8k` | HuggingFace dataset |
 | `NUM_FEW_SHOT` | `3` | Few-shot examples for base model eval (set `0` for SFT/GRPO) |
 | `NUM_EVAL_SAMPLES` | `100` | Samples to evaluate (`-1` = all) |
-| `USE_QLORA` | `true` | 4-bit QLoRA for SFT (set `false` for full bf16 fine-tuning) |
+| `USE_QLORA` | `True` | 4-bit QLoRA for SFT (set `False` for full bf16 fine-tuning) |
 | `EVAL_RUN_TAG` | *(auto)* | `base` / `sft` / `grpo` — inferred from `MODEL_ID` if blank |
 | `COMET_EVAL_PROJECT` | `sarvam1-odia-gsm8k-eval` | Comet project for eval comparison dashboard |
 
@@ -91,7 +98,7 @@ claude
 ### Step 1 — Base model baseline
 
 ```bash
-# In .env: MODEL_ID=ai4bharat/sarvam-1, NUM_FEW_SHOT=3
+# In config.py: MODEL_ID = "ai4bharat/sarvam-1", NUM_FEW_SHOT = 3
 jupyter lab notebooks/sarvam1_eval.ipynb
 # (or for headless execution: jupyter nbconvert --to notebook --execute notebooks/sarvam1_eval.ipynb)
 ```
@@ -115,7 +122,7 @@ jupyter lab notebooks/sarvam1_sft.ipynb
 ### Step 3 — Eval SFT model
 
 ```bash
-# In .env: MODEL_ID={HF_USERNAME}/sarvam-1-odia-gsm8k-sft, NUM_FEW_SHOT=0
+# In config.py: MODEL_ID = "{HF_USERNAME}/sarvam-1-odia-gsm8k-sft", NUM_FEW_SHOT = 0
 jupyter lab notebooks/sarvam1_eval.ipynb
 ```
 
@@ -138,7 +145,7 @@ jupyter lab notebooks/sarvam1_grpo.ipynb
 ### Step 5 — Eval GRPO model
 
 ```bash
-# In .env: MODEL_ID={HF_USERNAME}/sarvam-1-odia-gsm8k-grpo, NUM_FEW_SHOT=0
+# In config.py: MODEL_ID = "{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo", NUM_FEW_SHOT = 0
 jupyter lab notebooks/sarvam1_eval.ipynb
 ```
 

@@ -9,17 +9,25 @@ Usage (RunPod):
     cd /workspace && python sft_train.py
     # Ctrl-A D to detach; screen -r sft to reattach
 
-All config via environment variables — see .env.example.
+Non-secret config lives in config.py; secrets (HF_TOKEN, COMET_API_KEY,
+OPIK_API_KEY) in .env — see .env.example.
 """
 
 import gc
 import os
+import sys
 import time
 from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv()
+# Make the repo root importable so `config.py` resolves regardless of CWD,
+# then pull in every non-secret parameter (config.py also loads .env secrets).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from config import *  # noqa: F401,F403
+
 os.environ.setdefault("HF_HOME", "/workspace/hf_cache")
+
+# Import comet_ml *before* torch so Comet can auto-instrument the framework.
+import comet_ml
 
 import torch
 from datasets import load_dataset
@@ -34,44 +42,18 @@ print("CUDA   :", torch.cuda.is_available(),
 
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration — all values come from config.py (imported above).
+# A few local aliases keep the names this script already uses downstream.
 # ---------------------------------------------------------------------------
-HF_TOKEN         = os.getenv("HF_TOKEN")
-HF_USERNAME      = os.getenv("HF_USERNAME", "")
-BASE_MODEL_ID    = os.getenv("MODEL_ID",    "ai4bharat/sarvam-1")
-DATASET_ID       = os.getenv("DATASET_ID",  "tripathysagar/odia-gsm8k")
-TRAIN_SPLIT      = os.getenv("TRAIN_SPLIT", "train")
-QUESTION_COL     = os.getenv("QUESTION_COL", "question")
-ANSWER_COL       = os.getenv("ANSWER_COL",   "answer")
-
-SFT_OUTPUT_DIR   = Path(os.getenv("SFT_OUTPUT_DIR",  "/workspace/sarvam1-odia-gsm8k-sft"))
-SFT_HUB_MODEL_ID = os.getenv("SFT_HUB_MODEL_ID",     f"{HF_USERNAME}/sarvam-1-odia-gsm8k-sft" if HF_USERNAME else "")
-PUSH_TO_HUB      = os.getenv("PUSH_TO_HUB",  "true").lower() == "true"
-PRIVATE_REPO     = os.getenv("PRIVATE_REPO", "false").lower() == "true"
-
-USE_QLORA        = os.getenv("USE_QLORA",    "true").lower() == "true"
-NUM_EPOCHS       = float(os.getenv("NUM_EPOCHS",    "3"))
-LEARNING_RATE    = float(os.getenv("LEARNING_RATE", "2e-4"))
-BATCH_SIZE       = int(os.getenv("BATCH_SIZE",      "8"))
-GRAD_ACCUM       = int(os.getenv("GRAD_ACCUM",      "2"))
-MAX_SEQ_LEN      = int(os.getenv("MAX_SEQ_LEN",     "2048"))
-WARMUP_RATIO     = float(os.getenv("WARMUP_RATIO",  "0.03"))
-LOGGING_STEPS    = int(os.getenv("LOGGING_STEPS",   "10"))
-SAVE_STEPS       = int(os.getenv("SAVE_STEPS",      "200"))
-LORA_R           = int(os.getenv("LORA_R",          "16"))
-LORA_ALPHA       = int(os.getenv("LORA_ALPHA",      "32"))
-
-COMET_API_KEY    = os.getenv("COMET_API_KEY")
-COMET_WORKSPACE  = os.getenv("COMET_WORKSPACE")
-COMET_PROJECT    = os.getenv("COMET_PROJECT_NAME", "odia-finetuning-inference")
-GPU_TYPE         = os.getenv("GPU_TYPE", "").strip().lower()      # e.g. h100, l40, a100
-COMET_TAGS_EXTRA = os.getenv("COMET_TAGS", "").strip()           # optional extra tags
+BASE_MODEL_ID    = MODEL_ID
+COMET_PROJECT    = COMET_PROJECT_NAME
+COMET_TAGS_EXTRA = COMET_TAGS
 
 # Fail fast on missing push target — don't waste hours of training
 if PUSH_TO_HUB:
     assert SFT_HUB_MODEL_ID, (
         "PUSH_TO_HUB=true but neither SFT_HUB_MODEL_ID nor HF_USERNAME is set. "
-        "Set one before training, or set PUSH_TO_HUB=false."
+        "Set one in config.py before training, or set PUSH_TO_HUB=False."
     )
 
 SFT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -94,7 +76,6 @@ else:
     print("HF Hub : HF_TOKEN not set — push will fail")
 
 if COMET_API_KEY:
-    import comet_ml
     tags = ["sft", "qlora" if USE_QLORA else "bf16"]
     if GPU_TYPE:
         tags.append(GPU_TYPE)
@@ -112,12 +93,11 @@ else:
     REPORT_TO = "none"
     print("Comet  : not configured (set COMET_API_KEY to enable)")
 
-OPIK_ENABLED      = bool(os.getenv("OPIK_API_KEY"))
-OPIK_PROJECT_NAME = os.getenv("OPIK_PROJECT_NAME", "odia-finetuning-inference")
+OPIK_ENABLED = bool(OPIK_API_KEY)
 if OPIK_ENABLED:
     import opik
     os.environ["OPIK_PROJECT_NAME"] = OPIK_PROJECT_NAME   # Opik reads this automatically
-    opik.configure(api_key=os.getenv("OPIK_API_KEY"), workspace=os.getenv("OPIK_WORKSPACE"))
+    opik.configure(api_key=OPIK_API_KEY, workspace=OPIK_WORKSPACE)
     print(f"Opik   : configured  project={OPIK_PROJECT_NAME}")
 else:
     print("Opik   : not configured (optional)")
@@ -304,3 +284,11 @@ for ex in test_ds:
     print("Gold:", str(ex[ANSWER_COL])[:200], "...")
     print("Pred:", pred[:300])
     print("-" * 60)
+
+
+# ---------------------------------------------------------------------------
+# Finalize tracking — flush + close the Comet experiment
+# ---------------------------------------------------------------------------
+if REPORT_TO == "comet_ml":
+    comet_ml.end()
+    print("Comet  : experiment ended — all metrics & code flushed")

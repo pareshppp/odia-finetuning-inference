@@ -9,20 +9,28 @@ Usage (RunPod):
     cd /workspace && python grpo_train.py
     # Ctrl-A D to detach; screen -r grpo to reattach
 
-All config via environment variables — see .env.example.
-Requires SFT_MODEL_ID (or SFT_HUB_MODEL_ID) to be set.
+Non-secret config lives in config.py; secrets (HF_TOKEN, COMET_API_KEY,
+OPIK_API_KEY) in .env — see .env.example.
+Requires SFT_MODEL_ID / SFT_HUB_MODEL_ID (or HF_USERNAME) set in config.py.
 """
 
 import gc
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Optional
-from dotenv import load_dotenv
 
-load_dotenv()
+# Make the repo root importable so `config.py` resolves regardless of CWD,
+# then pull in every non-secret parameter (config.py also loads .env secrets).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from config import *  # noqa: F401,F403
+
 os.environ.setdefault("HF_HOME", "/workspace/hf_cache")
+
+# Import comet_ml *before* torch so Comet can auto-instrument the framework.
+import comet_ml
 
 import torch
 from datasets import load_dataset
@@ -37,46 +45,22 @@ print("CUDA   :", torch.cuda.is_available(),
 
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration — all values come from config.py (imported above).
+# A few local aliases keep the names this script already uses downstream.
 # ---------------------------------------------------------------------------
-HF_TOKEN          = os.getenv("HF_TOKEN")
-HF_USERNAME       = os.getenv("HF_USERNAME", "")
-SFT_MODEL_ID      = os.getenv("SFT_MODEL_ID", os.getenv("SFT_HUB_MODEL_ID",
-                               f"{HF_USERNAME}/sarvam-1-odia-gsm8k-sft" if HF_USERNAME else ""))
-DATASET_ID        = os.getenv("DATASET_ID",   "tripathysagar/odia-gsm8k")
-TRAIN_SPLIT       = os.getenv("TRAIN_SPLIT",  "train")
-QUESTION_COL      = os.getenv("QUESTION_COL", "question")
-ANSWER_COL        = os.getenv("ANSWER_COL",   "answer")
-
-GRPO_OUTPUT_DIR   = Path(os.getenv("GRPO_OUTPUT_DIR",  "/workspace/sarvam1-odia-gsm8k-grpo"))
-GRPO_HUB_MODEL_ID = os.getenv("GRPO_HUB_MODEL_ID",     f"{HF_USERNAME}/sarvam-1-odia-gsm8k-grpo" if HF_USERNAME else "")
-PUSH_TO_HUB       = os.getenv("PUSH_TO_HUB",  "true").lower() == "true"
-PRIVATE_REPO      = os.getenv("PRIVATE_REPO", "false").lower() == "true"
-
-USE_QLORA         = os.getenv("USE_QLORA",    "true").lower() == "true"
-USE_VLLM          = os.getenv("USE_VLLM",     "false").lower() == "true"
-NUM_EPOCHS        = float(os.getenv("GRPO_NUM_EPOCHS",    "1"))
-LEARNING_RATE     = float(os.getenv("GRPO_LEARNING_RATE", "5e-6"))
-BATCH_SIZE        = int(os.getenv("GRPO_BATCH_SIZE",      "1"))
-GRAD_ACCUM        = int(os.getenv("GRPO_GRAD_ACCUM",      "8"))
-MAX_PROMPT_LEN    = int(os.getenv("MAX_PROMPT_LEN",       "512"))
-MAX_COMPLETION    = int(os.getenv("MAX_COMPLETION_LENGTH", "512"))
-NUM_GENERATIONS   = int(os.getenv("NUM_GENERATIONS",      "8"))
-BETA              = float(os.getenv("GRPO_BETA",          "0.04"))
-WARMUP_RATIO      = float(os.getenv("WARMUP_RATIO",       "0.03"))
-LOGGING_STEPS     = int(os.getenv("LOGGING_STEPS",        "5"))
-SAVE_STEPS        = int(os.getenv("SAVE_STEPS",           "100"))
-LORA_R            = int(os.getenv("LORA_R",               "16"))
-LORA_ALPHA        = int(os.getenv("LORA_ALPHA",           "32"))
-
-COMET_API_KEY     = os.getenv("COMET_API_KEY")
-COMET_WORKSPACE   = os.getenv("COMET_WORKSPACE")
-COMET_PROJECT     = os.getenv("COMET_PROJECT_NAME", "odia-finetuning-inference")
-GPU_TYPE          = os.getenv("GPU_TYPE", "").strip().lower()
-COMET_TAGS_EXTRA  = os.getenv("COMET_TAGS", "").strip()
+NUM_EPOCHS       = GRPO_NUM_EPOCHS
+LEARNING_RATE    = GRPO_LEARNING_RATE
+BATCH_SIZE       = GRPO_BATCH_SIZE
+GRAD_ACCUM       = GRPO_GRAD_ACCUM
+MAX_COMPLETION   = MAX_COMPLETION_LENGTH
+BETA             = GRPO_BETA
+LOGGING_STEPS    = GRPO_LOGGING_STEPS
+SAVE_STEPS       = GRPO_SAVE_STEPS
+COMET_PROJECT    = COMET_PROJECT_NAME
+COMET_TAGS_EXTRA = COMET_TAGS
 
 # Fail fast — don't waste hours on misconfiguration
-assert SFT_MODEL_ID, "Set SFT_MODEL_ID (HF repo of the SFT-tuned model) before running."
+assert SFT_MODEL_ID, "Set SFT_MODEL_ID / SFT_HUB_MODEL_ID (or HF_USERNAME) in config.py before running."
 
 if PUSH_TO_HUB:
     assert GRPO_HUB_MODEL_ID, (
@@ -111,7 +95,6 @@ if HF_TOKEN:
     print("HF Hub : logged in")
 
 if COMET_API_KEY:
-    import comet_ml
     tags = ["grpo", "qlora" if USE_QLORA else "bf16"]
     if GPU_TYPE:
         tags.append(GPU_TYPE)
@@ -129,12 +112,11 @@ else:
     REPORT_TO = "none"
     print("Comet  : not configured (set COMET_API_KEY to enable)")
 
-OPIK_ENABLED      = bool(os.getenv("OPIK_API_KEY"))
-OPIK_PROJECT_NAME = os.getenv("OPIK_PROJECT_NAME", "odia-finetuning-inference")
+OPIK_ENABLED = bool(OPIK_API_KEY)
 if OPIK_ENABLED:
     import opik
     os.environ["OPIK_PROJECT_NAME"] = OPIK_PROJECT_NAME
-    opik.configure(api_key=os.getenv("OPIK_API_KEY"), workspace=os.getenv("OPIK_WORKSPACE"))
+    opik.configure(api_key=OPIK_API_KEY, workspace=OPIK_WORKSPACE)
     print(f"Opik   : configured  project={OPIK_PROJECT_NAME}")
 
 
@@ -375,3 +357,11 @@ for ex in test_ds:
     print("Gold:", str(ex[ANSWER_COL])[:200], "...")
     print("Pred:", pred[:300])
     print("-" * 60)
+
+
+# ---------------------------------------------------------------------------
+# Finalize tracking — flush + close the Comet experiment
+# ---------------------------------------------------------------------------
+if REPORT_TO == "comet_ml":
+    comet_ml.end()
+    print("Comet  : experiment ended — all metrics & code flushed")
